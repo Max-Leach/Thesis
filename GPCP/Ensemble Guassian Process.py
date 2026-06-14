@@ -18,6 +18,7 @@ exact kernel (max abs error ~0.01 at D=2e4, 1-D inputs, l=1).
 
 import numpy as np
 from scipy.stats import cauchy, gamma, chi2
+from scipy.stats import norm
 from sklearn.metrics import mean_squared_error
 import matplotlib.pyplot as plt
 
@@ -114,11 +115,11 @@ def run_online_gp(X_all, y_all, V, sigma_n, sigma_f, n_init=50, batch=50):
 
 def run_online_gp_recursive(X_all, y_all, V, sigma_n, sigma_f, n_init=100):
     # Memoryless Bayesian update of the RFF weight posterior (paper eqs. 10-11).
-    M = 2.0 * V.shape[1]
+    M = 2 * V.shape[1]
     theta = np.zeros(M)
-    Sigma = (sigma_f ** 2.0) * np.eye(M) # prior  theta ~ N(0, sigma_f^2 I)
+    Sigma = (sigma_f ** 2) * np.eye(M) # prior  theta ~ N(0, sigma_f^2 I)
     Z = rff_features(X_all, V)
-    sn2 = sigma_n ** 2.0
+    sn2 = sigma_n ** 2
     preds, truths, varis = [], [], []
     for t in range(len(X_all)):
         phi = Z[t]
@@ -141,7 +142,7 @@ def run_online_gp_recursive(X_all, y_all, V, sigma_n, sigma_f, n_init=100):
 # ----------------------------------------------------------------------
 def gaussian_loglik(y, mu, var):
     var = np.maximum(var, 1e-12)
-    return -0.5 * (np.log(2.0 * np.pi * var) + (y - mu) ** 2 / var)
+    return -0.5 * (np.log(2 * np.pi * var) + (y - mu) ** 2 / var)
 
 
 # ----------------------------------------------------------------------
@@ -193,8 +194,8 @@ def bayes_credible(y, mu, var, alpha=0.1):
 def standard_cp(y, mu, var, alpha=0.1):
     T = len(y)
     var = np.maximum(np.asarray(var, float), 1e-12)
-    nll_min = 0.5 * np.log(2.0 * np.pi * var)              # min score, at y = mu
-    score = nll_min + (y - mu) ** 2 / (2.0 * var)          # observed score s_t(Y_t)
+    nll_min = 0.5 * np.log(2 * np.pi * var)              # min score, at y = mu
+    score = nll_min + (y - mu) ** 2 / (2 * var)          # observed score s_t(Y_t)
 
     lo = np.full(T, np.nan)
     hi = np.full(T, np.nan)
@@ -204,11 +205,11 @@ def standard_cp(y, mu, var, alpha=0.1):
     
     for t in range(T):
         q = np.quantile(past, 1-alpha, method="higher") if past else score[t]
-        rad = 2.0 * var[t] * (q - nll_min[t])
+        rad = 2 * var[t] * (q - nll_min[t])
         if rad >= 0:
             h = np.sqrt(rad)
             lo[t], hi[t] = mu[t]-h, mu[t]+h
-            size[t] = 2.0 * h
+            size[t] = 2 * h
         covered[t] = score[t] <= q
         past.append(score[t])
     return dict(lo=lo, hi=hi, covered=covered, size=size)
@@ -237,11 +238,11 @@ def online_conformal(y, mu, var, alpha=0.1, step="varying", c=1.0, eps=0.1,
     y = np.asarray(y, float)
     T = len(y)
     var = np.maximum(np.asarray(var, float), 1e-12)
-    nll_min = 0.5 * np.log(2.0 * np.pi * var)
-    score   = nll_min + (y - mu) ** 2 / (2.0 * var)
+    nll_min = 0.5 * np.log(2 * np.pi * var)
+    score   = nll_min + (y - mu) ** 2 / (2 * var)
     
     if q1 is None:
-        q1 = float(np.median(nll_min) + chi2.ppf(1.0 - alpha, df=1) / 2.0)
+        q1 = float(np.median(nll_min) + chi2.ppf(1.0 - alpha, df=1) / 2)
     q = q1
     
     lo = np.full(T, np.nan)
@@ -258,11 +259,11 @@ def online_conformal(y, mu, var, alpha=0.1, step="varying", c=1.0, eps=0.1,
     
     for t in range(T):
         q_path[t] = q
-        rad = 2.0 * var[t] * (q - nll_min[t])
+        rad = 2 * var[t] * (q - nll_min[t])
         if rad >= 0.0:
             h = np.sqrt(rad)
             lo[t], hi[t] = mu[t] - h, mu[t] + h
-            size[t] = 2.0 * h
+            size[t] = 2 * h
         covered[t] = score[t] <= q
         
         if step == "varying":
@@ -325,7 +326,7 @@ if __name__ == "__main__":
         "RBF":     sample_rbf(d, D, length_scale, rng),
         "Matern":  sample_matern(d, D, length_scale, nu=1.5, rng=rng),
         "Laplace": sample_laplacian(d, D, length_scale, rng),
-        "RQ":      sample_rq(d, D, length_scale, alpha=2.0, rng=rng),
+        "RQ":      sample_rq(d, D, length_scale, alpha=2, rng=rng),
     }
 
     results = {}
